@@ -1,0 +1,26 @@
+# Apply after docker-compose.yml and docker-compose.app.yml.
+# Requires Docker Compose 2.24.4 or later for !override.
+x-jacey-environment: &jacey-environment
+  INSTAGRAM_META_ONLY: "true"
+  DATABASE_URL: ${DOCKER_DATABASE_URL:?Set DOCKER_DATABASE_URL}
+
+services:
+  postgres:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${JACEY_POSTGRES_PASSWORD:?Set JACEY_POSTGRES_PASSWORD}
+
+  redis:
+    ports: !reset []
+    command: ["redis-server", "--appendonly", "yes"]
+
+  web:
+    ports: !override
+      - "127.0.0.1:3000:3000"
+    environment: *jacey-environment
+
+  worker:
+    environment: *jacey-environment
+
+  cron:
+    environment: *jacey-environment

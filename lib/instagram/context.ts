@@ -1,5 +1,6 @@
 import { decryptToken } from "@/lib/meta/oauth";
 import { prisma } from "@/lib/db/client";
+import { isInstagramMetaOnly } from "@/lib/env";
 
 export type InstagramContext =
   | {
@@ -30,7 +31,7 @@ export function hasInstagramCredentials(
   account: Pick<ProviderAccount, "provider" | "accessToken" | "zernioAccountId">
 ) {
   return account.provider === "ZERNIO"
-    ? Boolean(account.zernioAccountId)
+    ? !isInstagramMetaOnly() && Boolean(account.zernioAccountId)
     : Boolean(account.accessToken);
 }
 
@@ -45,6 +46,7 @@ export async function createInstagramContext(
       instagramId: account.instagramId,
       unifiedLogin: account.metaLogin === "UNIFIED",
     };
+  if (isInstagramMetaOnly()) throw new Error("Zernio is disabled in Meta-only mode");
   if (!account.zernioAccountId)
     throw new Error("Zernio account is not connected");
   const connection = await prisma.zernioConnection.findUnique({

@@ -7,6 +7,7 @@ vi.mock("@/lib/meta/oauth", () => ({
 }));
 import {
   createInstagramContext,
+  hasInstagramCredentials,
   sendPrivateReplyWithButton,
   sendDirectMessageWithLinkButton,
   getRecentMediaComments,
@@ -34,6 +35,28 @@ describe("Instagram provider boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", fetchMock);
+  });
+  it("blocks Zernio credentials and requests in Meta-only mode", async () => {
+    vi.stubEnv("INSTAGRAM_META_ONLY", "true");
+    try {
+      const account = {
+        provider: "ZERNIO" as const,
+        metaLogin: "INSTAGRAM" as const,
+        workspaceId: "workspace",
+        zernioAccountId: context.accountId,
+        instagramId: context.instagramId,
+        accessToken: "",
+      };
+      expect(hasInstagramCredentials(account)).toBe(false);
+      await expect(createInstagramContext(account)).rejects.toThrow(
+        "Zernio is disabled in Meta-only mode"
+      );
+      await expect(zernioRequest({ apiKey: "", path: "/accounts" })).rejects.toThrow();
+      expect(prisma.zernioConnection.findUnique).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
   it("resolves only the selected account workspace credentials", async () => {
     vi.mocked(prisma.zernioConnection.findUnique).mockResolvedValue({

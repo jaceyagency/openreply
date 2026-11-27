@@ -1,8 +1,8 @@
 node_modules
+.npm-cache
 .next
 .git
-.env
-.env.local
+.env*
 __tests__
 docs
 *.md

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/client';
+import { isInstagramMetaOnly } from '@/lib/env';
 import { decryptToken } from '@/lib/meta/oauth';
 import { normalizeZernioEvent, verifyZernioSignature } from '@/lib/zernio/normalize-event';
 import { processInstagramWebhook } from '@/lib/queue/process-webhook';
@@ -8,6 +9,7 @@ import { processInstagramWebhook } from '@/lib/queue/process-webhook';
 const eventEnvelopeSchema = z.object({ account: z.object({ id: z.string().min(1), platform: z.literal('instagram') }) });
 
 export async function POST(request: Request, segmentData: { params: Promise<{ workspaceId: string }> }) {
+  if (isInstagramMetaOnly()) return NextResponse.json({ error: 'Unknown subscription' }, { status: 404 });
   const { workspaceId } = await segmentData.params;
   const connection = await prisma.zernioConnection.findUnique({ where: { workspaceId } });
   if (!connection?.webhookId) return NextResponse.json({ error: 'Unknown subscription' }, { status: 404 });
