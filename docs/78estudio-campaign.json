@@ -1,0 +1,13 @@
+{
+  "instagramAccountId": "",
+  "campaigns": [
+    {
+      "name": "78 ESTUDIO · Curso gratuito de acuarela",
+      "postId": "",
+      "keywords": ["ACUARELA"],
+      "wholeWordMatch": true,
+      "dmMessage": "¡Gracias por comentar! Aquí tienes el curso gratuito de acuarela de 78 ESTUDIO.",
+      "isActive": false
+    }
+  ]
+}

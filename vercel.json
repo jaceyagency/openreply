@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "jacey/78estudio-setup": false
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/refresh-tokens",

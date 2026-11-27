@@ -3,6 +3,7 @@ import {
   RateLimitError,
   TokenExpiredError,
 } from "@/lib/meta/client";
+import { isInstagramMetaOnly } from "@/lib/env";
 
 export class ZernioApiError extends MetaApiError {
   constructor(status: number) {
@@ -38,6 +39,7 @@ export async function zernioRequest<T>({
   body?: unknown;
   idempotencyKey?: string;
 }): Promise<T> {
+  if (isInstagramMetaOnly()) throw new ZernioApiError(403);
   if (!path.startsWith("/") || path.startsWith("//"))
     throw new Error("Invalid Zernio API path");
   const response = await fetch(`https://zernio.com/api/v1${path}`, {

@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  if (mode === "subscribe" && token === process.env.WEBHOOK_VERIFY_TOKEN) {
+  const verifyToken = process.env.WEBHOOK_VERIFY_TOKEN;
+  if (mode === "subscribe" && verifyToken && token === verifyToken && challenge) {
     return new NextResponse(challenge, { status: 200 });
   }
 
@@ -40,7 +41,6 @@ export async function POST(request: NextRequest) {
           payload: {
             hadSignatureHeader: Boolean(signature),
             bodyLength: rawBody.length,
-            bodyPreview: rawBody.slice(0, 200),
           },
         },
       })

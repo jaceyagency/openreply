@@ -60,6 +60,10 @@ export function getMetaGraphApiVersion(): string {
   return process.env.META_GRAPH_API_VERSION ?? "v25.0";
 }
 
+export function isInstagramMetaOnly(): boolean {
+  return process.env.INSTAGRAM_META_ONLY === "true";
+}
+
 // Meta apps created from October 2026 only offer "API setup with Unified
 // login" (issues #103, #104). Setting the login configuration's ID makes new
 // connections go through Unified login, with META_APP_ID and

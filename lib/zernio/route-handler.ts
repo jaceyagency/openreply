@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { Prisma } from '@/app/generated/prisma/client';
 import { MetaApiError } from '@/lib/meta/client';
+import { isInstagramMetaOnly } from '@/lib/env';
 import { canManageWorkspace, getCurrentWorkspaceContext, type WorkspaceContext } from '@/lib/workspace-access';
 
 export class ConnectionError extends Error {
@@ -11,6 +12,7 @@ export class ConnectionError extends Error {
 export function withZernioManagement(handler: (context: WorkspaceContext, request: Request) => Promise<Response>) {
   return async (request: Request) => {
     try {
+      if (isInstagramMetaOnly()) throw new ConnectionError('Zernio is disabled in Meta-only mode.', 404);
       const context = await getCurrentWorkspaceContext();
       if (!context) throw new ConnectionError('Sign in to manage your connection.', 401);
       if (!canManageWorkspace(context.role)) throw new ConnectionError('Only workspace owners and admins can manage the Zernio connection.', 403);
