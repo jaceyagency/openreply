@@ -14,6 +14,14 @@ const emailFrom = process.env.EMAIL_FROM ?? "OpenReply <login@example.com>";
 // default, so an existing deployment is unaffected.
 const smtpServer = process.env.EMAIL_SERVER;
 
+function normalizeEmailIdentifier(identifier: string): string {
+  const email = identifier?.normalize("NFKC").trim().toLowerCase();
+  if (!email || !/^[^\s\p{Cc}@,;:<>"()\[\]\\]+@[^\s\p{Cc}@,;:<>"()\[\]\\]+$/u.test(email)) {
+    throw new Error("Invalid email address format.");
+  }
+  return email;
+}
+
 /**
  * Provider id the login form has to sign in with. It differs per transport,
  * so it is derived here rather than hardcoded at the call site.
@@ -24,10 +32,11 @@ export const authConfig = {
   adapter: PrismaAdapter(prisma as unknown as AdapterPrismaClient),
   providers: [
     smtpServer
-      ? Nodemailer({ server: smtpServer, from: emailFrom })
+      ? Nodemailer({ server: smtpServer, from: emailFrom, normalizeIdentifier: normalizeEmailIdentifier })
       : Resend({
           apiKey: process.env.RESEND_API_KEY ?? "missing-resend-api-key",
           from: emailFrom,
+          normalizeIdentifier: normalizeEmailIdentifier,
         }),
   ],
   callbacks: {

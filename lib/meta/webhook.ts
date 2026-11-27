@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
 export function verifyWebhookSignature(
-  payload: string,
+  payload: string | Buffer,
   signature: string | null
 ): boolean {
   if (!signature) return false;

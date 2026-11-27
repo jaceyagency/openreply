@@ -33,3 +33,45 @@ Quedan pendientes la URL del curso, los identificadores, las credenciales, el SM
 - `npm run lint`, `npm run typecheck` y `npm run build` completados. Next.js 16.2.6 generó las 63 páginas previstas durante la compilación.
 - Una comprobación local de la plantilla confirmó el estado pausado y la coincidencia por palabra completa. El YAML de la configuración JACEY pasó una comprobación de sintaxis, puertos y modo Meta. Docker Compose no está instalado en este entorno.
 - La prueba de entrega integral con Meta queda pendiente de una cuenta y un entorno autorizados.
+
+## Revisión de seguridad
+
+La instalación registró 36 entradas de auditoría, cuatro críticas. npm cuenta paquetes afectados, incluidos los que heredan un aviso de otra dependencia. La caché conserva los avisos originales y permite identificar las cuatro entradas críticas. El registro de npm no respondió a una nueva consulta desde este entorno. Una ejecución offline arroja un informe vacío porque npm omite la consulta. El archivo de bloqueo sigue registrando las versiones afectadas.
+
+| Entrada crítica | Causa y alcance en OpenReply |
+| --- | --- |
+| `next@16.2.6` | La caché recoge avisos de ejecución de código en servidores Windows, el optimizador de imágenes, `ImageResponse` y funciones con Cache Components. Se desactivó el optimizador. Las imágenes que usan `next/image` son SVG locales. No se usa `next/og` ni están habilitados los Cache Components. El aviso de Windows y los demás avisos de Next.js siguen pendientes de actualización. [Windows](https://github.com/advisories/GHSA-p293-qw3h-jr36) · [AVIF](https://github.com/advisories/GHSA-2xp9-vwfh-vxw4) · [ImageResponse](https://github.com/advisories/GHSA-vcvr-r3jv-pc5j) · [SVG](https://github.com/advisories/GHSA-2464-fhr4-w9xw) · [Cache Components](https://github.com/advisories/GHSA-673q-mjm6-r5xr) |
+| `next-auth@5.0.0-beta.31` | El inicio de sesión por correo podía validar una dirección antes de normalizar Unicode. Ambos proveedores aplican ahora la misma normalización antes de validar un único destinatario. Otro aviso afecta a código que concede acceso por la mera existencia de una sesión. Las comprobaciones de acceso revisadas requieren `session.user.id`. [Correo](https://github.com/advisories/GHSA-7rqj-j65f-68wh) · [Sesiones](https://github.com/advisories/GHSA-8fpg-xm3f-6cx3) |
+| `@auth/core@0.41.2` | Contiene el normalizador afectado. La mitigación en los proveedores cubre el flujo de correo de OpenReply. El paquete sigue dentro del rango vulnerable hasta la versión 0.41.3. [Aviso](https://github.com/advisories/GHSA-7rqj-j65f-68wh) |
+| `@auth/prisma-adapter@2.11.2` | Hereda la entrada crítica por su dependencia de `@auth/core`. La actualización debe verificarse junto con `next-auth` y la creación y consumo de enlaces de acceso. |
+
+Los demás avisos de la caché se agrupan en estas cadenas. El alcance debe reconfirmarse con `npm audit --json` y `npm audit --omit=dev --json` cuando haya acceso al registro.
+
+- **Aplicación y compilación.** Next.js arrastra PostCSS, Sharp y datos de compatibilidad de navegadores. También aparecen avisos de Nodemailer, incluidas su gestión de mensajes y su exposición a consumo de recursos, y de Zod por agotamiento de memoria al validar colecciones grandes. Se necesitan versiones corregidas y una prueba de los flujos SMTP y de validación.
+- **Prisma y utilidades transitivas.** La cadena de Prisma incluye Hono, su servidor Node, MySQL, Effect, Deepmerge, Valibot y utilidades de esquemas y URI. Los avisos abarcan control de acceso, manejo de rutas y consumo de recursos. OpenReply usa PostgreSQL y no inicia Prisma Studio ni el servidor local de Prisma como parte del stack JACEY. Hay que verificar el generador, las migraciones y las consultas tras actualizar Prisma.
+- **Herramientas de desarrollo.** Vitest, su mocker, Vite, esbuild, Babel, ESLint, TypeScript ESLint, Tailwind y utilidades transitivas incluyen avisos de acceso a archivos, análisis de entradas y consumo de recursos. Su superficie principal está en pruebas, lint, compilación y servidores de desarrollo. Hay que verificar la cadena de herramientas completa después de actualizarla.
+
+`npm audit fix --force` puede sacar dependencias directas de los rangos de `package.json`. Cambiar Next.js sin su configuración de ESLint, alterar las versiones de Auth.js por separado o sustituir dependencias internas de Prisma puede romper la compilación, el inicio de sesión o las migraciones. No se ejecutó ese comando. La remediación de dependencias queda bloqueada por el acceso al registro npm.
+
+El webhook contrasta la firma HMAC con los bytes recibidos antes de decodificar JSON. Las firmas rechazadas devuelven 401 sin generar escrituras en PostgreSQL. El reto GET sigue requiriendo `WEBHOOK_VERIFY_TOKEN`. Solo se encolan eventos de las cuentas conectadas al proveedor Meta. Las pruebas locales no verifican una entrega real de Meta.
+
+La deduplicación de comentarios usa el ID determinista de BullMQ y la restricción única de PostgreSQL por campaña y comentario. La reclamación atómica previa al envío protege frente a reintentos, concurrencia y eliminación del trabajo en Redis. Un resultado incierto queda reclamado y puede dejar un mensaje sin entregar. Dos campañas solapadas o dos comentarios distintos pueden producir dos respuestas. Esta revisión no verificó la reclamación contra PostgreSQL.
+
+La revisión estática del Compose de JACEY confirma el cierre de los puertos de PostgreSQL y Redis y la publicación de la web en `127.0.0.1`. Redis carece de autenticación y confía en los contenedores de la red del proyecto. La contraseña de PostgreSQL es obligatoria y solo inicializa volúmenes nuevos. Reutilizar un volumen con la contraseña del archivo Compose base requiere cambiar la contraseña en PostgreSQL y sincronizar la URL antes de usarlo. El archivo de ejemplo contiene valores de muestra y los archivos locales de credenciales están excluidos del repositorio y de la imagen. El aislamiento efectivo y la fusión de los tres archivos Compose siguen pendientes de validación con Docker.
+
+### Pruebas con PostgreSQL y Redis locales
+
+En este entorno Docker no está disponible, WSL deniega la enumeración de distribuciones y no se encontraron servicios PostgreSQL o Redis locales. Cuando el motor Docker esté disponible, usar contenedores desechables separados del stack JACEY y publicar sus puertos solo en loopback. Estos comandos PowerShell requieren que las imágenes estén disponibles localmente.
+
+```powershell
+$testDbPassword = node -p "require('node:crypto').randomBytes(24).toString('hex')"
+docker run --pull=never --rm -d --name openreply-test-postgres -p 127.0.0.1:55432:5432 -e POSTGRES_PASSWORD=$testDbPassword postgres:16
+docker run --pull=never --rm -d --name openreply-test-redis -p 127.0.0.1:6390:6379 redis:7-alpine
+docker exec openreply-test-postgres pg_isready -U postgres
+docker exec openreply-test-redis redis-cli ping
+$env:TEST_DATABASE_URL = "postgresql://postgres:${testDbPassword}@127.0.0.1:55432/postgres"
+$env:TEST_REDIS_URL = "redis://127.0.0.1:6390"
+npm test
+docker stop openreply-test-postgres openreply-test-redis
+Remove-Item Env:TEST_DATABASE_URL, Env:TEST_REDIS_URL
+```
